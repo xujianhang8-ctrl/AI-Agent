@@ -87,3 +87,9 @@ python -m pytest -q
 
 > Indicative analysis only. It is not financial or legal advice. Confirm eligibility with HDB,
 > stamp duties with IRAS, and loan amounts with a bank In-Principle Approval.
+
+## Web chatbot (no install)
+
+`web/property-advisor.html` is a standalone chatbot page with the same rules engine rewritten in
+JavaScript. Published as a Claude artifact, it chats through the viewer's own Claude account, so it
+needs no API key. Its **Quick check** tab runs the calculator directly with no AI at all.
