@@ -1,0 +1,20 @@
+{
+  "residency": "SC",
+  "co_applicant_residency": "SC",
+  "household_type": "married_couple",
+  "age": 35,
+  "monthly_income": 14500,
+  "existing_monthly_debt": 0,
+  "cpf_oa_balance": 120000,
+  "cash_savings": 80000,
+  "current_property": {
+    "type": "HDB",
+    "estimated_value": 650000,
+    "outstanding_loan": 180000,
+    "cpf_used_with_interest": 210000,
+    "years_owned": 6,
+    "plan": "sell"
+  },
+  "purpose": "own_stay",
+  "timeline": "flexible"
+}
