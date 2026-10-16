@@ -8,6 +8,10 @@ comes from deterministic calculations rather than the model's memory.
 from __future__ import annotations
 
 import json
+import logging
+import os
+import urllib.request
+from datetime import datetime, timezone
 from typing import Callable
 
 import anthropic
@@ -46,7 +50,9 @@ Do not state policy figures from memory.
 - Be clear that this is an indicative first-cut analysis; the agent will confirm with HDB, IRAS and a bank \
 In-Principle Approval before any commitment.
 - Keep replies concise and easy to read on a phone. Use S$ for amounts.
-- If the client wants to proceed or has detailed questions about specific projects, offer to arrange a call with the agent.
+- If the client wants to proceed, view units, or has detailed questions about specific projects, offer to arrange \
+a call with the agent. Ask for their name and phone number (and preferred contact time), then call save_lead with \
+a short summary of their situation and your recommendation. Only call save_lead after the client has agreed to be contacted.
 """
 
 _PROPERTY_SCHEMA = {
@@ -99,6 +105,25 @@ TOOLS = [
         },
     },
     {
+        "name": "save_lead",
+        "description": (
+            "Save the client's contact details so the property agent can follow up. Only call this after "
+            "the client has agreed to be contacted and given their name and phone number."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string"},
+                "phone": {"type": "string"},
+                "email": {"type": "string"},
+                "preferred_contact_time": {"type": "string"},
+                "summary": {"type": "string",
+                            "description": "2-4 sentences: the client's situation, budget and recommended options"},
+            },
+            "required": ["name", "phone", "summary"],
+        },
+    },
+    {
         "name": "calculate_stamp_duty",
         "description": "Compute Buyer's Stamp Duty and ABSD for a specific purchase price.",
         "input_schema": {
@@ -127,9 +152,46 @@ def run_tool(name: str, tool_input: dict) -> tuple[str, bool]:
                 str(tool_input["residency"]).upper(),
                 int(tool_input["property_count_after_purchase"]),
             )), False
+        if name == "save_lead":
+            return json.dumps(save_lead(tool_input)), False
         return f"Unknown tool: {name}", True
-    except (ProfileError, KeyError, ValueError, TypeError) as exc:
+    except (ProfileError, KeyError, ValueError, TypeError, OSError) as exc:
         return f"Invalid input: {exc}", True
+
+
+LEADS_FILE = os.environ.get("LEADS_FILE", "leads.jsonl")
+LEAD_WEBHOOK_URL = os.environ.get("LEAD_WEBHOOK_URL", "")
+log = logging.getLogger(__name__)
+
+
+def save_lead(lead: dict) -> dict:
+    """Append a lead to a JSON-lines file. Replace this with your CRM or email integration."""
+    name, phone = str(lead.get("name", "")).strip(), str(lead.get("phone", "")).strip()
+    if not name or not phone:
+        raise ValueError("name and phone are required")
+    record = {
+        "saved_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "name": name[:200],
+        "phone": phone[:50],
+        "email": str(lead.get("email", ""))[:200],
+        "preferred_contact_time": str(lead.get("preferred_contact_time", ""))[:200],
+        "summary": str(lead.get("summary", ""))[:2000],
+    }
+    with open(LEADS_FILE, "a", encoding="utf-8") as fh:
+        fh.write(json.dumps(record) + "\n")
+    if LEAD_WEBHOOK_URL:
+        _post_webhook(record)
+    return {"saved": True, "message": "Lead saved. Tell the client the agent will be in touch."}
+
+
+def _post_webhook(record: dict):
+    """Forward a lead to Google Sheets (Apps Script), Zapier, Make, etc. Failures are logged, not raised."""
+    req = urllib.request.Request(LEAD_WEBHOOK_URL, data=json.dumps(record).encode(),
+                                 headers={"Content-Type": "application/json"}, method="POST")
+    try:
+        urllib.request.urlopen(req, timeout=10).close()
+    except Exception as exc:  # the lead is already in LEADS_FILE
+        log.warning("Lead webhook failed: %s", exc)
 
 
 class PropertyAdvisorAgent:

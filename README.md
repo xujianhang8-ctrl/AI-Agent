@@ -15,10 +15,26 @@ It has two layers:
    then calls the rules engine as a tool and explains the result in plain language. All figures
    come from the engine, not from the model's memory.
 
-## Setup
+## Website chat
+
+To put the chatbot on your website as a chat bubble, follow
+**[docs/WEBSITE_CHAT_SETUP.md](docs/WEBSITE_CHAT_SETUP.md)**. It's a step-by-step guide with no
+coding needed. The server is `property_agent/server.py` and the bubble is `property_agent/static/widget.js`.
+When a client agrees to be contacted, the bot saves their name and phone number as a lead, and can
+also send it to a Google Sheet.
+
+Run it locally:
 
 ```bash
 pip install -r requirements.txt
+export ANTHROPIC_API_KEY=sk-ant-...
+uvicorn property_agent.server:app --reload    # then open http://localhost:8000
+```
+
+## Setup (command line)
+
+```bash
+pip install -r requirements-dev.txt
 export ANTHROPIC_API_KEY=sk-ant-...     # only needed for chat mode
 ```
 
